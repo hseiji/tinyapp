@@ -40,13 +40,12 @@ app.get("/urls/new", (req, res) => {
   res.render("urls_new");
 });
 
+// Create a new short URL
 app.post("/urls", (req, res) => {
-  // console.log(req.body);  // Log the POST request body to the console
   const tinyUrl = generateRandomString();
-  urlDatabase[tinyUrl] = req.body.longURL;
-  res.redirect(`/urls/${tinyUrl}`);
-  // res.send("Ok");         // Respond with 'Ok' (we will replace this)
-  // console.log(urlDatabase);
+  // saving the new input on urlDatabase
+  urlDatabase[tinyUrl] = req.body.longURL; // req.body.longURL comes from the form input
+  res.redirect(`/urls/${tinyUrl}`); // redirects to page urls_show
 });
 
 app.get("/urls/:shortURL", (req, res) => {
