@@ -27,15 +27,13 @@ app.get("/", (req, res) => {
   res.send("Hello!");
 });
 
+// List all urls on the index page
 app.get("/urls", (req, res) => {
   const templateVars = { urls: urlDatabase };
   res.render("urls_index", templateVars);
 });
 
-app.get("/hello", (req, res) => {
-  res.send("<html><body>Hello <b>World</b></body></html>\n");
-});
-
+// Renders the new URL page
 app.get("/urls/new", (req, res) => {
   res.render("urls_new");
 });
@@ -48,17 +46,25 @@ app.post("/urls", (req, res) => {
   res.redirect(`/urls/${tinyUrl}`); // redirects to page urls_show
 });
 
+// Route to edit the URL
+app.post("/urls/:id", (req, res) => {
+  urlDatabase[req.params.id] = req.body.longURL;
+  res.redirect('/urls');
+});
+
 // Delete an URL
 app.post("/urls/:shortURL/delete", (req, res) => {
   delete urlDatabase[req.params.shortURL];
   res.redirect('/urls');
 });
 
+// Load urls_show page with the selected short/long URL
 app.get("/urls/:shortURL", (req, res) => {
   const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL] };
   res.render("urls_show", templateVars);
 });
 
+// Redirects the shortURL to the longURL
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL];
   console.log(longURL);
@@ -70,8 +76,7 @@ app.get("/u/:shortURL", (req, res) => {
 });
 
 
-
-
+// Server listening on Port ...
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
