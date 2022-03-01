@@ -56,6 +56,11 @@ app.get("/urls/:shortURL", (req, res) => {
 
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL];
+  console.log(longURL);
+  // Edge case: non-existent shortURL
+  if (longURL === undefined) {
+    res.send("This short url does not exist");
+  }
   res.redirect(longURL);
 });
 
