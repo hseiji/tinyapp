@@ -9,6 +9,30 @@ const generateRandomString = () => {
   return result.join('');
 };
 
+const users = { 
+  "userRandomID": {
+    id: "userRandomID", 
+    email: "user@example.com", 
+    password: "purple-monkey-dinosaur"
+  },
+ "user2RandomID": {
+    id: "user2RandomID", 
+    email: "user2@example.com", 
+    password: "dishwasher-funk"
+  }
+}
+
+// Helper function: checks if user is already registered
+const checkUser = (users, email) => {
+  for (const user in users) {
+    console.log("user", users[user].email);
+    if (users[user].email === email) {
+      return true;
+    }
+  }
+  return false;
+};
+
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const app = express();
@@ -31,9 +55,10 @@ app.get("/", (req, res) => {
 
 // List all urls on the index page
 app.get("/urls", (req, res) => {
+  console.log(users);
   const templateVars = { 
     urls: urlDatabase,
-    username: req.cookies["username"]
+    user: users[req.cookies["user_id"]]
   };
   res.render("urls_index", templateVars);
 });
@@ -65,19 +90,23 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 
 // Login Route - Cookies
 app.post("/login", (req, res) => {
-  res.cookie('username', req.body.username);
+  res.cookie("user_id", req.body.username);
   res.redirect('/urls');
 });
 
 // Logout Route - Clear Cookie
 app.post("/logout", (req, res) => {
-  res.clearCookie("username");
+  res.clearCookie("user_id");
   res.redirect('/urls');
 });
 
 // Load urls_show page with the selected short/long URL
 app.get("/urls/:shortURL", (req, res) => {
-  const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL] };
+  const templateVars = { 
+    shortURL: req.params.shortURL, 
+    longURL: urlDatabase[req.params.shortURL], 
+    user: users["user_id"]
+  };
   res.render("urls_show", templateVars);
 });
 
@@ -92,6 +121,34 @@ app.get("/u/:shortURL", (req, res) => {
   res.redirect(longURL);
 });
 
+// User Registration - Load page/form
+app.get("/register", (req, res) => {
+  const templateVars = { 
+    user: users["user_id"]
+  };  
+  res.render("register", templateVars);
+});
+
+// User Registration - POST form/user information
+app.post("/register", (req, res) => {
+  // If email or password are ""
+  if (req.body.email === "" || req.body.password === "") {
+    res.status(400).send("Invalid username or password!");
+  }
+  // If email is already registered in the database
+  if (checkUser(users, req.body.email)) {
+    res.status(400).send("User already registered!");
+  }
+
+  const newId = generateRandomString();
+  users[newId] = {
+    id: newId,
+    email: req.body.email,
+    password: req.body.password
+  }
+  res.cookie("user_id", newId);
+  res.redirect("/urls")
+});
 
 // Server listening on Port ...
 app.listen(PORT, () => {
