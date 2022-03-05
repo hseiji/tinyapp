@@ -23,14 +23,29 @@ const users = {
 }
 
 // Helper function: checks if user is already registered
-const checkUser = (users, email) => {
+const checkUser = (users, email, password) => {
   for (const user in users) {
-    console.log("user", users[user].email);
-    if (users[user].email === email) {
-      return true;
+    // console.log("user", users[user].email);
+    if (password !== "") {
+      if (users[user].email === email && users[user].password === password) {
+        return true;
+      }
+    } else {
+      if (users[user].email === email) {
+        return true;
+      }
     }
   }
   return false;
+};
+// Helper function: get user id
+const getUserId = (users, email) => {
+  for (const user in users) {
+    if (users[user].email === email) {
+      return users[user].id;
+    }
+  }
+  return "Error";
 };
 
 const express = require('express');
@@ -65,7 +80,12 @@ app.get("/urls", (req, res) => {
 
 // Renders the new URL page
 app.get("/urls/new", (req, res) => {
-  res.render("urls_new");
+  console.log(users);
+  const templateVars = { 
+    urls: urlDatabase,
+    user: users[req.cookies["user_id"]]
+  };  
+  res.render("urls_new", templateVars);
 });
 
 // Create a new short URL
@@ -90,6 +110,7 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 
 // Login GET - Login Page Template
 app.get("/login", (req, res) => {
+  console.log(users);
   const templateVars = { 
     user: users["user_id"]
   };  
@@ -98,8 +119,13 @@ app.get("/login", (req, res) => {
 
 // Login POST - Set Cookies
 app.post("/login", (req, res) => {
-  res.cookie("user_id", req.body.username);
-  res.redirect('/urls');
+  // Check if user is registered and password matches
+  if (checkUser(users, req.body.email, req.body.password)) {
+    res.cookie("user_id", getUserId(users, req.body.email));
+    res.redirect('/urls');
+  } else {
+    res.status(403).send("Email or password is invalid!");
+  }
 });
 
 // Logout Route - Clear Cookie
@@ -144,7 +170,7 @@ app.post("/register", (req, res) => {
     res.status(400).send("Invalid username or password!");
   }
   // If email is already registered in the database
-  if (checkUser(users, req.body.email)) {
+  if (checkUser(users, req.body.email, "")) {
     res.status(400).send("User already registered!");
   }
 

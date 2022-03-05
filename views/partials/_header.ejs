@@ -9,8 +9,15 @@
         <a class="nav-item nav-link" href="/urls">My URLs</a>
         <a class="nav-item nav-link" href="/urls/new">Create New URL</a>
         <!-- Logout and Login section on navbar -->
-        <a class="nav-item nav-link" href="/login">Login</a>
-        <a class="nav-item nav-link" href="/register">Register</a>
+        <% if(user) { %>
+          <form class="form-inline justify-content-right" method="POST" action="/logout">
+            <div style="margin-right: 1em">Logged In As: <%= user.email %></div>
+            <button type="submit" class="btn btn-outline-dark">Logout</button>
+          </form>
+          <% } else { %>
+          <a class="nav-item nav-link" href="/login">Login</a>
+          <a class="nav-item nav-link" href="/register">Register</a>
+        <% } %>
         <!-- <% if(user) { %>
           <form class="form-inline justify-content-right" method="POST" action="/logout">
             <div style="margin-right: 1em">Logged In As: <%= user.email %></div>
