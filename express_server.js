@@ -88,7 +88,15 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   res.redirect('/urls');
 });
 
-// Login Route - Cookies
+// Login GET - Login Page Template
+app.get("/login", (req, res) => {
+  const templateVars = { 
+    user: users["user_id"]
+  };  
+  res.render("login", templateVars);
+});
+
+// Login POST - Set Cookies
 app.post("/login", (req, res) => {
   res.cookie("user_id", req.body.username);
   res.redirect('/urls');
