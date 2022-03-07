@@ -15,7 +15,7 @@ const users = {
     email: "user@example.com", 
     password: "purple-monkey-dinosaur"
   },
- "user2RandomID": {
+  "user2RandomID": {
     id: "user2RandomID", 
     email: "user2@example.com", 
     password: "dishwasher-funk"
@@ -38,6 +38,7 @@ const checkUser = (users, email, password) => {
   }
   return false;
 };
+
 // Helper function: get user id
 const getUserId = (users, email) => {
   for (const user in users) {
@@ -46,6 +47,17 @@ const getUserId = (users, email) => {
     }
   }
   return "Error";
+};
+
+// Helper function: returns the URLs where userID === id current logged in
+const urlsForUser = (id) => {
+  const result = {};
+  for(const url of Object.keys(urlDatabase)) {
+    if (urlDatabase[url].userID === id) {
+      result[url] = urlDatabase[url];
+    }
+  }
+  return result;
 };
 
 const express = require('express');
@@ -79,10 +91,16 @@ app.get("/urls", (req, res) => {
   console.log(users);
   console.log(urlDatabase);
   const templateVars = { 
-    urls: urlDatabase,
-    user: users[req.cookies["user_id"]]
+    urls: urlsForUser(req.cookies["user_id"]),
+    user: users[req.cookies["user_id"]],
+    message: "Please be advised to log in."
   };
-  res.render("urls_index", templateVars);
+  // If user is not logged in - Error HTML page
+  if (!users[req.cookies["user_id"]]) {
+    res.render("error", templateVars);
+  } else {
+    res.render("urls_index", templateVars);
+  }
 });
 
 // Renders the new URL page (if user is not logged in, redirects to the login page)
@@ -116,8 +134,13 @@ app.post("/urls", (req, res) => {
 
 // Delete an URL
 app.post("/urls/:shortURL/delete", (req, res) => {
-  delete urlDatabase[req.params.shortURL];
-  res.redirect('/urls');
+  // If user is not logged in or tries to edit a URL that does not belong to the person - Error HTML page
+  if (!users[req.cookies["user_id"]] || urlDatabase[req.params.shortURL].userID !== req.cookies["user_id"]) {
+    res.send("Please be advised to be logged in and you are only allowed to edit/delete your own URLs.");
+  } else {
+    delete urlDatabase[req.params.shortURL];
+    res.redirect('/urls');
+  }    
 });
 
 // Login GET - Login Page Template (redirects to /urls when is logged in)
@@ -154,9 +177,15 @@ app.get("/urls/:shortURL", (req, res) => {
   const templateVars = {
     shortURL: req.params.shortURL, 
     longURL: urlDatabase[req.params.shortURL].longURL, 
-    user: users["user_id"]
+    user: users[req.cookies["user_id"]],
+    message: "Please be advised to be logged in and you are only allowed to edit/delete your own URLs."
   };
-  res.render("urls_show", templateVars);
+  // If user is not logged in or tries to edit a URL that does not belong to the person - Error HTML page
+  if (!users[req.cookies["user_id"]] || urlDatabase[req.params.shortURL].userID !== req.cookies["user_id"]) {
+    res.render("error", templateVars);
+  } else {
+    res.render("urls_show", templateVars);
+  }  
 });
 
 // Redirects the shortURL to the longURL
