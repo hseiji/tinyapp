@@ -10,30 +10,23 @@ const generateRandomString = () => {
 };
 
 const users = { 
-  "userRandomID": {
-    id: "userRandomID", 
-    email: "user@example.com", 
-    password: "purple-monkey-dinosaur"
+  "gt6cU4": {
+    id: "gt6cU4", 
+    email: "maggie@gmail.com", 
+    password: "$2a$10$y6NDN2apopkijQqEf8IS2ugLaOD2OFdc6UM1.IKUjsE1iQTkb1ODe"
   },
-  "user2RandomID": {
-    id: "user2RandomID", 
-    email: "user2@example.com", 
-    password: "dishwasher-funk"
+  "nuBchG": {
+    id: "nuBchG", 
+    email: "homer@gmail.com", 
+    password: "$2a$10$18LT3BM2j9PxMtEfE/BZzOhWpyXomgSyI070cjMc9wdaqRFWKWxvW"
   }
 }
 
 // Helper function: checks if user is already registered
-const checkUser = (users, email, password) => {
+const checkUser = (users, email) => {
   for (const user in users) {
-    // console.log("user", users[user].email);
-    if (password !== "") {
-      if (users[user].email === email && users[user].password === password) {
-        return true;
-      }
-    } else {
-      if (users[user].email === email) {
-        return true;
-      }
+    if (users[user].email === email) {
+      return true;
     }
   }
   return false;
@@ -61,6 +54,7 @@ const urlsForUser = (id) => {
 };
 
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const cookieParser = require('cookie-parser');
 const app = express();
 const PORT = 8080; // default port 8080
@@ -74,7 +68,7 @@ app.use(bodyParser.urlencoded({extended: true}));
 const urlDatabase = {
   b6UTxQ: {
     longURL: "https://www.tsn.ca",
-    userID: "aJ48lW"
+    userID: "gt6cU4"
   },
   i3BoGr: {
     longURL: "https://www.google.ca",
@@ -158,7 +152,7 @@ app.get("/login", (req, res) => {
 // Login POST - Set Cookies
 app.post("/login", (req, res) => {
   // Check if user is registered and password matches
-  if (checkUser(users, req.body.email, req.body.password)) {
+  if (checkUser(users, req.body.email) && bcrypt.compareSync(req.body.password, users[getUserId(users, req.body.email)].password)) {
     res.cookie("user_id", getUserId(users, req.body.email));
     res.redirect('/urls');
   } else {
@@ -218,23 +212,27 @@ app.get("/register", (req, res) => {
 
 // User Registration - POST form/user information
 app.post("/register", (req, res) => {
+  let errors = false;
   // If email or password are ""
   if (req.body.email === "" || req.body.password === "") {
     res.status(400).send("Invalid username or password!");
+    errors = true;
   }
   // If email is already registered in the database
-  if (checkUser(users, req.body.email, "")) {
+  if (checkUser(users, req.body.email)) {
     res.status(400).send("User already registered!");
+    errors = true;
   }
-
-  const newId = generateRandomString();
-  users[newId] = {
-    id: newId,
-    email: req.body.email,
-    password: req.body.password
+  if (!errors) {
+    const newId = generateRandomString();
+    users[newId] = {
+      id: newId,
+      email: req.body.email,
+      password: bcrypt.hashSync(req.body.password, 10)
+    }
+    res.cookie("user_id", newId);
+    res.redirect("/urls")
   }
-  res.cookie("user_id", newId);
-  res.redirect("/urls")
 });
 
 // Server listening on Port ...
