@@ -60,8 +60,14 @@ app.use(cookieParser());
 app.use(bodyParser.urlencoded({extended: true}));
 
 const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+  b6UTxQ: {
+    longURL: "https://www.tsn.ca",
+    userID: "aJ48lW"
+  },
+  i3BoGr: {
+    longURL: "https://www.google.ca",
+    userID: "aJ48lW"
+  }
 };
 
 app.get("/", (req, res) => {
@@ -71,6 +77,7 @@ app.get("/", (req, res) => {
 // List all urls on the index page
 app.get("/urls", (req, res) => {
   console.log(users);
+  console.log(urlDatabase);
   const templateVars = { 
     urls: urlDatabase,
     user: users[req.cookies["user_id"]]
@@ -78,28 +85,33 @@ app.get("/urls", (req, res) => {
   res.render("urls_index", templateVars);
 });
 
-// Renders the new URL page
+// Renders the new URL page (if user is not logged in, redirects to the login page)
 app.get("/urls/new", (req, res) => {
-  console.log(users);
-  const templateVars = { 
-    urls: urlDatabase,
-    user: users[req.cookies["user_id"]]
-  };  
-  res.render("urls_new", templateVars);
+  if (!users[req.cookies["user_id"]]) {
+    console.log("Please log in before creating a new short URL.");
+    res.redirect('/login');
+  } else {
+    const templateVars = { 
+      urls: urlDatabase,
+      user: users[req.cookies["user_id"]]
+    };  
+    res.render("urls_new", templateVars);
+  }
 });
 
 // Create a new short URL
 app.post("/urls", (req, res) => {
-  const tinyUrl = generateRandomString();
-  // saving the new input on urlDatabase
-  urlDatabase[tinyUrl] = req.body.longURL; // req.body.longURL comes from the form input
-  res.redirect(`/urls/${tinyUrl}`); // redirects to page urls_show
-});
-
-// Route to edit the URL
-app.post("/urls/:id", (req, res) => {
-  urlDatabase[req.params.id] = req.body.longURL;
-  res.redirect('/urls');
+  if (users[req.cookies["user_id"]]) {
+    const tinyUrl = generateRandomString();
+    // saving the new input on urlDatabase
+    urlDatabase[tinyUrl] = {
+      longURL: req.body.longURL,
+      userID: req.cookies["user_id"]
+    } // req.body.longURL comes from the form input
+    res.redirect(`/urls/${tinyUrl}`); // redirects to page urls_show
+  } else {
+    console.log("Please log in before creating a new short URL.");
+  }
 });
 
 // Delete an URL
@@ -108,13 +120,16 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   res.redirect('/urls');
 });
 
-// Login GET - Login Page Template
+// Login GET - Login Page Template (redirects to /urls when is logged in)
 app.get("/login", (req, res) => {
-  console.log(users);
-  const templateVars = { 
-    user: users["user_id"]
-  };  
-  res.render("login", templateVars);
+  if (users[req.cookies["user_id"]]) {
+    res.redirect('/urls');
+  } else {
+    const templateVars = { 
+      user: users["user_id"]
+    };  
+    res.render("login", templateVars);
+  }
 });
 
 // Login POST - Set Cookies
@@ -136,9 +151,9 @@ app.post("/logout", (req, res) => {
 
 // Load urls_show page with the selected short/long URL
 app.get("/urls/:shortURL", (req, res) => {
-  const templateVars = { 
+  const templateVars = {
     shortURL: req.params.shortURL, 
-    longURL: urlDatabase[req.params.shortURL], 
+    longURL: urlDatabase[req.params.shortURL].longURL, 
     user: users["user_id"]
   };
   res.render("urls_show", templateVars);
@@ -146,7 +161,7 @@ app.get("/urls/:shortURL", (req, res) => {
 
 // Redirects the shortURL to the longURL
 app.get("/u/:shortURL", (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL];
+  const longURL = urlDatabase[req.params.shortURL].longURL;
   console.log(longURL);
   // Edge case: non-existent shortURL
   if (longURL === undefined) {
