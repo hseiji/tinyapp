@@ -174,18 +174,27 @@ app.post("/logout", (req, res) => {
 
 // Load urls_show page with the selected short/long URL
 app.get("/urls/:shortURL", (req, res) => {
-  const templateVars = {
-    shortURL: req.params.shortURL, 
-    longURL: urlDatabase[req.params.shortURL].longURL, 
-    user: users[req.cookies["user_id"]],
-    message: "Please be advised to be logged in and you are only allowed to edit/delete your own URLs."
-  };
-  // If user is not logged in or tries to edit a URL that does not belong to the person - Error HTML page
-  if (!users[req.cookies["user_id"]] || urlDatabase[req.params.shortURL].userID !== req.cookies["user_id"]) {
-    res.render("error", templateVars);
+  // If URL is valid (included in urlDatabase)
+  if(Object.keys(urlDatabase).includes(req.params.shortURL)) {
+    let templateVars = {
+      shortURL: req.params.shortURL, 
+      longURL: urlDatabase[req.params.shortURL].longURL, 
+      user: users[req.cookies["user_id"]],
+      message: "Please be advised to be logged in and you are only allowed to edit/delete your own URLs."
+    };
+    // If user is not logged in or tries to edit a URL that does not belong to the person - Error HTML page
+    if (!users[req.cookies["user_id"]] || urlDatabase[req.params.shortURL].userID !== req.cookies["user_id"]) {
+      res.render("error", templateVars);
+    } else {
+      res.render("urls_show", templateVars);
+    }
   } else {
-    res.render("urls_show", templateVars);
-  }  
+    const templateVars = {
+      user: users[req.cookies["user_id"]],
+      message: "This short URL is invalid."
+    };
+    res.render("error", templateVars);
+  }
 });
 
 // Redirects the shortURL to the longURL
