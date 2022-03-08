@@ -27,7 +27,17 @@ const getUserId = (users, email) => {
       return users[user].id;
     }
   }
-  return "Error";
+  return undefined;
+};
+
+// Helper function: get user by email
+const getUserbyEmail = (users, email) => {
+  for (const user in users) {
+    if (users[user].email === email) {
+      return user;
+    }
+  }
+  return undefined;
 };
 
 // Helper function: returns the URLs where userID === id current logged in
@@ -45,5 +55,6 @@ module.exports = {
   generateRandomString,
   checkUser,
   getUserId,
-  urlsForUser
+  urlsForUser,
+  getUserbyEmail
 };
