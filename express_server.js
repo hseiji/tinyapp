@@ -1,5 +1,10 @@
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const cookieSession = require('cookie-session');
+const app = express();
+const PORT = 8080; // default port 8080
+const bodyParser = require('body-parser');
 const { generateRandomString, checkUser, getUserId, urlsForUser } = require('./helper_functions');
-
 const users = { 
   "gt6cU4": {
     id: "gt6cU4", 
@@ -11,8 +16,7 @@ const users = {
     email: "homer@gmail.com", 
     password: "$2a$10$18LT3BM2j9PxMtEfE/BZzOhWpyXomgSyI070cjMc9wdaqRFWKWxvW"
   }
-}
-
+};
 const urlDatabase = {
   b6UTxQ: {
     longURL: "https://www.tsn.ca",
@@ -24,30 +28,24 @@ const urlDatabase = {
   }
 };
 
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const cookieSession = require('cookie-session');
-const app = express();
-const PORT = 8080; // default port 8080
-const bodyParser = require('body-parser');
-
 app.set("view engine", "ejs");
-
 app.use(cookieSession({
   name: 'session',
   keys: ['key1', 'key2']
 }));
-
 app.use(bodyParser.urlencoded({extended: true}));
 
+// GET ------------------------------------------------------
+// Homepage
 app.get("/", (req, res) => {
-  res.send("Hello!");
+  const templateVars = { 
+    user: users[req.session.user_id]
+  };  
+  res.render("home", templateVars);
 });
 
 // List all urls on the index page
 app.get("/urls", (req, res) => {
-  console.log(users);
-  console.log(urlDatabase);
   const templateVars = { 
     urls: urlsForUser(req.session.user_id, urlDatabase),
     user: users[req.session.user_id],
@@ -75,32 +73,6 @@ app.get("/urls/new", (req, res) => {
   }
 });
 
-// Create a new short URL (must be logged in)
-app.post("/urls", (req, res) => {
-  if (users[req.session.user_id]) {
-    const tinyUrl = generateRandomString();
-    // saving the new input on urlDatabase
-    urlDatabase[tinyUrl] = {
-      longURL: req.body.longURL,
-      userID: req.session.user_id
-    }
-    res.redirect(`/urls/${tinyUrl}`); // redirects to page urls_show
-  } else {
-    console.log("Please log in before creating a new short URL.");
-  }
-});
-
-// Delete an URL
-app.post("/urls/:shortURL/delete", (req, res) => {
-  // If user is not logged in or tries to edit a URL that does not belong to the user - Error HTML page
-  if (!users[req.session.user_id] || urlDatabase[req.params.shortURL].userID !== req.session.user_id) {
-    res.send("Please be advised to be logged in and you are only allowed to edit/delete your own URLs.");
-  } else {
-    delete urlDatabase[req.params.shortURL];
-    res.redirect('/urls');
-  }    
-});
-
 // Login GET - Login Page Template (redirects to /urls when is logged in)
 app.get("/login", (req, res) => {
   if (users[req.session.user_id]) {
@@ -111,23 +83,6 @@ app.get("/login", (req, res) => {
     };  
     res.render("login", templateVars);
   }
-});
-
-// Login POST - Set Cookies
-app.post("/login", (req, res) => {
-  // Check if user is registered and password matches
-  if (checkUser(users, req.body.email) && bcrypt.compareSync(req.body.password, users[getUserId(users, req.body.email)].password)) {
-    req.session.user_id = getUserId(users, req.body.email);
-    res.redirect('/urls');
-  } else {
-    res.status(403).send("Email or password is invalid!");
-  }
-});
-
-// Logout Route - Clear Cookie
-app.post("/logout", (req, res) => {
-  req.session = null;
-  res.redirect('/urls');
 });
 
 // Load urls_show page with the selected short/long URL
@@ -172,6 +127,50 @@ app.get("/register", (req, res) => {
     user: users["user_id"]
   };  
   res.render("register", templateVars);
+});
+
+// POST ------------------------------------------------------
+// Create a new short URL (must be logged in)
+app.post("/urls", (req, res) => {
+  if (users[req.session.user_id]) {
+    const tinyUrl = generateRandomString();
+    // saving the new input on urlDatabase
+    urlDatabase[tinyUrl] = {
+      longURL: req.body.longURL,
+      userID: req.session.user_id
+    }
+    res.redirect(`/urls/${tinyUrl}`); // redirects to page urls_show
+  } else {
+    console.log("Please log in before creating a new short URL.");
+  }
+});
+
+// Delete an URL
+app.post("/urls/:shortURL/delete", (req, res) => {
+  // If user is not logged in or tries to edit a URL that does not belong to the user - Error HTML page
+  if (!users[req.session.user_id] || urlDatabase[req.params.shortURL].userID !== req.session.user_id) {
+    res.send("Please be advised to be logged in and you are only allowed to edit/delete your own URLs.");
+  } else {
+    delete urlDatabase[req.params.shortURL];
+    res.redirect('/urls');
+  }    
+});
+
+// Login POST - Set Cookies
+app.post("/login", (req, res) => {
+  // Check if user is registered and password matches
+  if (checkUser(users, req.body.email) && bcrypt.compareSync(req.body.password, users[getUserId(users, req.body.email)].password)) {
+    req.session.user_id = getUserId(users, req.body.email);
+    res.redirect('/urls');
+  } else {
+    res.status(403).send("Email or password is invalid!");
+  }
+});
+
+// Logout Route - Clear Cookie
+app.post("/logout", (req, res) => {
+  req.session = null;
+  res.redirect('/urls');
 });
 
 // User Registration - POST form/user information
