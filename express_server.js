@@ -1,13 +1,4 @@
-const generateRandomString = () => {
-  // Generate a random string of length 6 characters
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  const length = 6;
-  result = [];
-  for (let i = 0; i < length; i++) {
-    result.push(chars[Math.floor(Math.random() * chars.length - 1)]);
-  }
-  return result.join('');
-};
+const { generateRandomString, checkUser, getUserId, urlsForUser } = require('./helper_functions');
 
 const users = { 
   "gt6cU4": {
@@ -22,49 +13,6 @@ const users = {
   }
 }
 
-// Helper function: checks if user is already registered
-const checkUser = (users, email) => {
-  for (const user in users) {
-    if (users[user].email === email) {
-      return true;
-    }
-  }
-  return false;
-};
-
-// Helper function: get user id
-const getUserId = (users, email) => {
-  for (const user in users) {
-    if (users[user].email === email) {
-      return users[user].id;
-    }
-  }
-  return "Error";
-};
-
-// Helper function: returns the URLs where userID === id current logged in
-const urlsForUser = (id) => {
-  const result = {};
-  for(const url of Object.keys(urlDatabase)) {
-    if (urlDatabase[url].userID === id) {
-      result[url] = urlDatabase[url];
-    }
-  }
-  return result;
-};
-
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const cookieParser = require('cookie-parser');
-const app = express();
-const PORT = 8080; // default port 8080
-const bodyParser = require('body-parser');
-
-app.set("view engine", "ejs");
-
-app.use(cookieParser());
-app.use(bodyParser.urlencoded({extended: true}));
-
 const urlDatabase = {
   b6UTxQ: {
     longURL: "https://www.tsn.ca",
@@ -76,6 +24,22 @@ const urlDatabase = {
   }
 };
 
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const cookieSession = require('cookie-session');
+const app = express();
+const PORT = 8080; // default port 8080
+const bodyParser = require('body-parser');
+
+app.set("view engine", "ejs");
+
+app.use(cookieSession({
+  name: 'session',
+  keys: ['key1', 'key2']
+}));
+
+app.use(bodyParser.urlencoded({extended: true}));
+
 app.get("/", (req, res) => {
   res.send("Hello!");
 });
@@ -85,12 +49,12 @@ app.get("/urls", (req, res) => {
   console.log(users);
   console.log(urlDatabase);
   const templateVars = { 
-    urls: urlsForUser(req.cookies["user_id"]),
-    user: users[req.cookies["user_id"]],
+    urls: urlsForUser(req.session.user_id, urlDatabase),
+    user: users[req.session.user_id],
     message: "Please be advised to log in."
   };
   // If user is not logged in - Error HTML page
-  if (!users[req.cookies["user_id"]]) {
+  if (!users[req.session.user_id]) {
     res.render("error", templateVars);
   } else {
     res.render("urls_index", templateVars);
@@ -99,27 +63,27 @@ app.get("/urls", (req, res) => {
 
 // Renders the new URL page (if user is not logged in, redirects to the login page)
 app.get("/urls/new", (req, res) => {
-  if (!users[req.cookies["user_id"]]) {
+  if (!users[req.session.user_id]) {
     console.log("Please log in before creating a new short URL.");
     res.redirect('/login');
   } else {
     const templateVars = { 
       urls: urlDatabase,
-      user: users[req.cookies["user_id"]]
+      user: users[req.session.user_id]
     };  
     res.render("urls_new", templateVars);
   }
 });
 
-// Create a new short URL
+// Create a new short URL (must be logged in)
 app.post("/urls", (req, res) => {
-  if (users[req.cookies["user_id"]]) {
+  if (users[req.session.user_id]) {
     const tinyUrl = generateRandomString();
     // saving the new input on urlDatabase
     urlDatabase[tinyUrl] = {
       longURL: req.body.longURL,
-      userID: req.cookies["user_id"]
-    } // req.body.longURL comes from the form input
+      userID: req.session.user_id
+    }
     res.redirect(`/urls/${tinyUrl}`); // redirects to page urls_show
   } else {
     console.log("Please log in before creating a new short URL.");
@@ -128,8 +92,8 @@ app.post("/urls", (req, res) => {
 
 // Delete an URL
 app.post("/urls/:shortURL/delete", (req, res) => {
-  // If user is not logged in or tries to edit a URL that does not belong to the person - Error HTML page
-  if (!users[req.cookies["user_id"]] || urlDatabase[req.params.shortURL].userID !== req.cookies["user_id"]) {
+  // If user is not logged in or tries to edit a URL that does not belong to the user - Error HTML page
+  if (!users[req.session.user_id] || urlDatabase[req.params.shortURL].userID !== req.session.user_id) {
     res.send("Please be advised to be logged in and you are only allowed to edit/delete your own URLs.");
   } else {
     delete urlDatabase[req.params.shortURL];
@@ -139,7 +103,7 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 
 // Login GET - Login Page Template (redirects to /urls when is logged in)
 app.get("/login", (req, res) => {
-  if (users[req.cookies["user_id"]]) {
+  if (users[req.session.user_id]) {
     res.redirect('/urls');
   } else {
     const templateVars = { 
@@ -153,7 +117,7 @@ app.get("/login", (req, res) => {
 app.post("/login", (req, res) => {
   // Check if user is registered and password matches
   if (checkUser(users, req.body.email) && bcrypt.compareSync(req.body.password, users[getUserId(users, req.body.email)].password)) {
-    res.cookie("user_id", getUserId(users, req.body.email));
+    req.session.user_id = getUserId(users, req.body.email);
     res.redirect('/urls');
   } else {
     res.status(403).send("Email or password is invalid!");
@@ -162,7 +126,7 @@ app.post("/login", (req, res) => {
 
 // Logout Route - Clear Cookie
 app.post("/logout", (req, res) => {
-  res.clearCookie("user_id");
+  req.session = null;
   res.redirect('/urls');
 });
 
@@ -173,18 +137,18 @@ app.get("/urls/:shortURL", (req, res) => {
     let templateVars = {
       shortURL: req.params.shortURL, 
       longURL: urlDatabase[req.params.shortURL].longURL, 
-      user: users[req.cookies["user_id"]],
+      user: users[req.session.user_id],
       message: "Please be advised to be logged in and you are only allowed to edit/delete your own URLs."
     };
     // If user is not logged in or tries to edit a URL that does not belong to the person - Error HTML page
-    if (!users[req.cookies["user_id"]] || urlDatabase[req.params.shortURL].userID !== req.cookies["user_id"]) {
+    if (!users[req.session.user_id] || urlDatabase[req.params.shortURL].userID !== req.session.user_id) {
       res.render("error", templateVars);
     } else {
       res.render("urls_show", templateVars);
     }
   } else {
     const templateVars = {
-      user: users[req.cookies["user_id"]],
+      user: users[req.session.user_id],
       message: "This short URL is invalid."
     };
     res.render("error", templateVars);
@@ -230,7 +194,8 @@ app.post("/register", (req, res) => {
       email: req.body.email,
       password: bcrypt.hashSync(req.body.password, 10)
     }
-    res.cookie("user_id", newId);
+    // res.cookie("user_id", newId);
+    req.session.user_id = newId;
     res.redirect("/urls")
   }
 });
