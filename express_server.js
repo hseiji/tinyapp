@@ -4,6 +4,7 @@ const cookieSession = require('cookie-session');
 const app = express();
 const PORT = 8080; // default port 8080
 const bodyParser = require('body-parser');
+const methodOverride = require('method-override');
 const { generateRandomString, checkUser, getUserId, urlsForUser } = require('./helper_functions');
 const users = { 
   "gt6cU4": {
@@ -34,6 +35,7 @@ app.use(cookieSession({
   keys: ['key1', 'key2']
 }));
 app.use(bodyParser.urlencoded({extended: true}));
+app.use(methodOverride('_method'));
 
 // GET ------------------------------------------------------
 // Homepage
@@ -86,7 +88,7 @@ app.get("/login", (req, res) => {
 });
 
 // Load urls_show page with the selected short/long URL
-app.get("/urls/:shortURL", (req, res) => {
+app.put("/urls/:shortURL", (req, res) => {
   // If URL is valid (included in urlDatabase)
   if(Object.keys(urlDatabase).includes(req.params.shortURL)) {
     let templateVars = {
@@ -146,7 +148,7 @@ app.post("/urls", (req, res) => {
 });
 
 // Delete an URL
-app.post("/urls/:shortURL/delete", (req, res) => {
+app.delete("/urls/:shortURL", (req, res) => {
   // If user is not logged in or tries to edit a URL that does not belong to the user - Error HTML page
   if (!users[req.session.user_id] || urlDatabase[req.params.shortURL].userID !== req.session.user_id) {
     res.send("Please be advised to be logged in and you are only allowed to edit/delete your own URLs.");
