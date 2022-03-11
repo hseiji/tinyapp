@@ -25,6 +25,18 @@
           </div>
         </form>        
       </div>
+      <div class="card-body">
+        <h5>Analytics</h5>
+        <p>Views: <%= countViews %></p>
+        <p>Unique visitors: <%= uniqueVisitors %></p>
+        <p>Track of visits:</p>
+        <!-- use for loop here... -->
+        <ul style="list-style-type: none">
+          <% for (const obj of timestamps) { %>
+            <li><%= obj.time %> by <%= obj.visitorId %></li>
+          <% } %>
+        </ul>
+      </div>
   </div>
   <!-- Bootstrap JS -->
   <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>

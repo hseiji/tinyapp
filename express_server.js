@@ -1,39 +1,15 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const cookieSession = require('cookie-session');
-const app = express();
-const PORT = 8080; // default port 8080
 const bodyParser = require('body-parser');
 const methodOverride = require('method-override');
+const app = express();
+const PORT = 8080; // default port 8080
 const { generateRandomString, checkUser, getUserId, urlsForUser } = require('./helper_functions');
-const users = { 
-  "gt6cU4": {
-    id: "gt6cU4", 
-    email: "maggie@gmail.com", 
-    password: "$2a$10$y6NDN2apopkijQqEf8IS2ugLaOD2OFdc6UM1.IKUjsE1iQTkb1ODe"
-  },
-  "nuBchG": {
-    id: "nuBchG", 
-    email: "homer@gmail.com", 
-    password: "$2a$10$18LT3BM2j9PxMtEfE/BZzOhWpyXomgSyI070cjMc9wdaqRFWKWxvW"
-  }
-};
-const urlDatabase = {
-  b6UTxQ: {
-    longURL: "https://www.tsn.ca",
-    userID: "gt6cU4"
-  },
-  i3BoGr: {
-    longURL: "https://www.google.ca",
-    userID: "aJ48lW"
-  }
-};
+const { users, urlDatabase } = require('./data/database');
 
 app.set("view engine", "ejs");
-app.use(cookieSession({
-  name: 'session',
-  keys: ['key1', 'key2']
-}));
+app.use(cookieSession({ name: 'session', keys: ['key1', 'key2'] }));
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(methodOverride('_method'));
 
@@ -91,10 +67,15 @@ app.get("/login", (req, res) => {
 app.put("/urls/:shortURL", (req, res) => {
   // If URL is valid (included in urlDatabase)
   if(Object.keys(urlDatabase).includes(req.params.shortURL)) {
+    req.session.views = (req.session.views || 0) + 1; // Analytics of visits 
+    console.log(req.session);
     let templateVars = {
       shortURL: req.params.shortURL, 
       longURL: urlDatabase[req.params.shortURL].longURL, 
       user: users[req.session.user_id],
+      countViews: urlDatabase[req.params.shortURL].countViews,
+      uniqueVisitors: urlDatabase[req.params.shortURL].uniqueVisitors.length,
+      timestamps: urlDatabase[req.params.shortURL].timestamps,
       message: "Please be advised to be logged in and you are only allowed to edit/delete your own URLs."
     };
     // If user is not logged in or tries to edit a URL that does not belong to the person - Error HTML page
@@ -104,10 +85,7 @@ app.put("/urls/:shortURL", (req, res) => {
       res.render("urls_show", templateVars);
     }
   } else {
-    const templateVars = {
-      user: users[req.session.user_id],
-      message: "This short URL is invalid."
-    };
+    const templateVars = { user: users[req.session.user_id], message: "This short URL is invalid." };
     res.render("error", templateVars);
   }
 });
@@ -115,11 +93,19 @@ app.put("/urls/:shortURL", (req, res) => {
 // Redirects the shortURL to the longURL
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL].longURL;
-  console.log(longURL);
   // Edge case: non-existent shortURL
   if (longURL === undefined) {
-    res.send("This short url does not exist");
+    return res.send("This short url does not exist");
   }
+  if (!req.session.visitor_id) {
+    req.session.visitor_id = generateRandomString();
+  }
+  if (!urlDatabase[req.params.shortURL].uniqueVisitors.includes(req.session.visitor_id)) {
+    urlDatabase[req.params.shortURL].uniqueVisitors.push(req.session.visitor_id);
+  }
+  urlDatabase[req.params.shortURL].countViews++;
+  urlDatabase[req.params.shortURL].timestamps.push({ time: Date(), visitorId: req.session.visitor_id });
+  console.log(longURL);
   res.redirect(longURL);
 });
 
@@ -139,7 +125,9 @@ app.post("/urls", (req, res) => {
     // saving the new input on urlDatabase
     urlDatabase[tinyUrl] = {
       longURL: req.body.longURL,
-      userID: req.session.user_id
+      userID: req.session.user_id,
+      uniqueVisitors: [],
+      countViews: 0
     }
     res.redirect(`/urls/${tinyUrl}`); // redirects to page urls_show
   } else {
